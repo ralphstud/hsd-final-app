@@ -118,8 +118,19 @@ void FPGA::largeMV(const float* large_mat, const float* input, float* output, in
       int block_col = min(v_size_, num_input-j);
 
       // 1) Assign a vector
-     
+      for(int k = 0; k < v_size_; ++k)
+        vec[k] = 0;
+      for(int k = 0; k < block_col; ++k)
+        vec[k] = input[j + k];
+
       // 2) Assign a matrix
+      for(int l = 0; l < v_size_ * m_size_; ++l)
+        mat[l] = 0;
+      for(int l = 0; l < block_row; ++l)
+      {
+        for(int m = 0; m < block_col; ++m)
+          mat[l * v_size_ + m] = large_mat[(i + l) * num_input + j + m];
+      }
 
       // 3) Call a function `blockMV() to execute MV multiplication
       const float* ret = this->blockMV();
@@ -148,18 +159,46 @@ void FPGA::largeMM(const float* weight_mat, const float* input_mat, float* outpu
       {
         // 0) Initialize input vector
         // IMPLEMENT THIS
+        // temporarily using code from lab09
+        int block_row = min(v_size_, num_output-i);
+        int block_col_1 = min(v_size_, num_input-j);
+        int block_col_2 = min(v_size_, num_matrix2-k);
 
         // 1) Assign a m1
         // IMPLEMENT THIS
+        // temporarily using code from lab09
+        for(int l = 0; l < m1_size_; ++l)
+          m1[l] = 0;
+        for(int r = 0; r < block_row; ++r)
+        { 
+          for(int c_1 = 0; c_1 < block_col_1; ++c_1)
+            m1[r * v_size_ + c_1] = weight_mat[(i + r) * num_input + j + c_1];
+        }
 
         // 2) Assign a m2
         // IMPLEMENT THIS
+        // temporarily using code from lab09
+        for(int l = 0; l < m1_size_; ++l)
+          m2[l] = 0;
+        for(int c_1 = 0; c_1 < block_col_1; ++c_1)
+        { 
+          for(int c_2 = 0; c_2 < block_col_2; ++c_2)
+            m2[c_1 * v_size_ + c_2] = input_mat[(j + c_1) * num_matrix2 + k + c_2];
+        }
 
         // 3) Call a function `blockMM() to execute Matrix matrix multiplication
         const float* ret = this->blockMM();
 
         // 4) Accumulate intermediate results
         // IMPLEMENT THIS
+        // temporarily using code from lab09
+        for(int n = 0; n<block_row; ++n)
+        {
+          for(int m = 0; m<block_col_2; ++m)
+          {
+            output[(i + n) + (k + m)*num_output] += ret[n*v_size_ + m];
+          }
+        }
         
       }
     } 
@@ -192,5 +231,32 @@ void FPGA::convLowering(const std::vector<std::vector<std::vector<std::vector<fl
   // For example,
   // new_weights[0][0] = cnn_weights[0][0][0][0];
   // new_inputs[0][0] = inputs[0][0][0];
+  // temporarily using code from lab09
+  for(int i = 0; i < conv_channel; ++i) 
+  {
+    for(int j = 0; j < input_channel; ++j)
+    {
+      for(int k = 0; k < conv_height; ++k)
+      {
+        for(int l = 0; l < conv_width; ++l)
+          new_weights[i][j * conv_height * conv_width + k * conv_width + l] = cnn_weights[i][j][k][l];
+      }
+    }
+  }
+
+  for(int i = 0; i < input_channel; ++i) 
+  {
+    for(int j = 0; j < input_height - conv_height + 1; ++j)
+    {
+      for(int k = 0; k < input_width - conv_width + 1; ++k)
+      {
+        for(int l = 0; l < conv_height; ++l)
+        {
+          for(int m = 0; m < conv_width; ++m)
+            new_inputs[i * conv_height * conv_width + l * conv_width + m][j * (input_width - conv_width + 1) + k] = inputs[i][j + l][k + m];
+        }        
+      }
+    }
+  }
   
 }
